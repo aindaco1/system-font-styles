@@ -25,6 +25,7 @@ let familyActionMap = new Map();
 let variantActionMap = new Map();
 let lastQuery = '';
 let selectedFamilyKey = null;
+let lastSelectionSignature = null;
 let lastAppliedFontKey = null;
 let lastAppliedSize = null;
 let lastAppliedAlignment = null;
@@ -549,6 +550,16 @@ function selectionRange(context) {
   };
 }
 
+function syncSelectedFamilyWithSelection(context, selectionStyles) {
+  const signature = `${context.selectionFrom}:${context.selectionTo}:${selectionStyles.fontVariant || ''}`;
+  if (signature === lastSelectionSignature) {
+    return;
+  }
+
+  lastSelectionSignature = signature;
+  selectedFamilyKey = selectionStyles.fontFamilyKey;
+}
+
 function fontPreview(family, variant = null) {
   const preview = {
     fontFamily: family
@@ -589,11 +600,15 @@ function buildFontResultBlocks(families, query, selectionStyles) {
   const selectedFamily = findFamilyByKey(matches, selectedFamilyKeyForPanel)
     || (matches.length === 1 ? matches[0] : null);
   const selectedKey = selectedFamily ? fontFamilyKey(selectedFamily) : null;
+  let selectedActionId = null;
 
   const familyActions = matches.map((family, index) => {
     const actionId = `family-${index}`;
     const key = fontFamilyKey(family);
     familyActionMap.set(actionId, key);
+    if (key === selectedKey) {
+      selectedActionId = actionId;
+    }
     return {
       id: actionId,
       label: family.name,
@@ -613,6 +628,7 @@ function buildFontResultBlocks(families, query, selectionStyles) {
     {
       type: 'scroll',
       maxHeight: 390,
+      scrollToActionId: selectedActionId || undefined,
       blocks: [
         {
           type: 'actions',
@@ -658,6 +674,7 @@ async function renderPanel(api, context, options = {}) {
   const forceRefresh = options.forceRefresh === true;
   const fonts = await loadFonts(api, forceRefresh);
   const selectionStyles = collectSelectionStyles(context.document, context);
+  syncSelectedFamilyWithSelection(context, selectionStyles);
   const activeSize = selectionStyles.hasText ? selectionStyles.sizePt : lastAppliedSize;
   const activeAlignment = selectionStyles.hasAlignmentBlock
     ? selectionStyles.alignment

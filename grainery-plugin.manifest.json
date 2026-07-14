@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.grainery.system-font-styles",
   "name": "System Font Styles",
-  "version": "1.2.6",
+  "version": "1.2.8",
   "description": "Applies installed system font variants, common sizes, and block alignment to selected text.",
   "engine": {
     "grainery": ">=0.1.0",
@@ -61,8 +61,8 @@
     "transforms": []
   },
   "permissionRationales": {
-    "ui:mount": "Adds a host-rendered panel and toolbar button for font styling.",
-    "system:fonts": "Lists installed font family and variant names so they can be applied to selected text."
+    "ui:mount": "This lets you open the font styling controls while you write.",
+    "system:fonts": "This lets the font picker list and preview fonts installed on this computer."
   },
   "signature": {
     "keyId": "main-2026",
