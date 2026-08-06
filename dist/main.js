@@ -18,8 +18,10 @@ const ALIGNABLE_NODE_TYPES = new Set([
 ]);
 const TEXT_STYLE_MARKS = new Set(['fontFamily', 'textSize']);
 const MAX_FONT_FAMILY_LENGTH = 128;
+const MAX_ACTIONS_PER_BLOCK = 64;
 
 let cachedFonts = null;
+let fontLoadPromise = null;
 let fontPermissionDenied = false;
 let familyActionMap = new Map();
 let variantActionMap = new Map();
@@ -29,6 +31,14 @@ let lastSelectionSignature = null;
 let lastAppliedFontKey = null;
 let lastAppliedSize = null;
 let lastAppliedAlignment = null;
+
+function chunkItems(items, size = MAX_ACTIONS_PER_BLOCK) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
 
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
@@ -143,6 +153,11 @@ function normalizeFamilies(input) {
 }
 
 async function loadFonts(api, forceRefresh = false) {
+  if (forceRefresh) {
+    cachedFonts = null;
+    fontPermissionDenied = false;
+  }
+
   if (!forceRefresh && cachedFonts) {
     return { granted: true, families: cachedFonts };
   }
@@ -151,16 +166,31 @@ async function loadFonts(api, forceRefresh = false) {
     return { granted: false, families: [] };
   }
 
-  const granted = await api.requestPermission('system:fonts');
-  if (!granted) {
-    fontPermissionDenied = true;
-    return { granted: false, families: [] };
+  if (fontLoadPromise) {
+    return fontLoadPromise;
   }
 
-  fontPermissionDenied = false;
-  const response = await api.hostCall('system:list_fonts', {});
-  cachedFonts = normalizeFamilies(response && response.families);
-  return { granted: true, families: cachedFonts };
+  const currentLoad = (async () => {
+    const granted = await api.requestPermission('system:fonts');
+    if (!granted) {
+      fontPermissionDenied = true;
+      return { granted: false, families: [] };
+    }
+
+    fontPermissionDenied = false;
+    const response = await api.hostCall('system:list_fonts', {});
+    cachedFonts = normalizeFamilies(response && response.families);
+    return { granted: true, families: cachedFonts };
+  })();
+
+  fontLoadPromise = currentLoad;
+  try {
+    return await currentLoad;
+  } finally {
+    if (fontLoadPromise === currentLoad) {
+      fontLoadPromise = null;
+    }
+  }
 }
 
 function getNodeSize(node) {
@@ -629,12 +659,10 @@ function buildFontResultBlocks(families, query, selectionStyles) {
       type: 'scroll',
       maxHeight: 390,
       scrollToActionId: selectedActionId || undefined,
-      blocks: [
-        {
-          type: 'actions',
-          actions: familyActions
-        }
-      ]
+      blocks: chunkItems(familyActions).map((actions) => ({
+        type: 'actions',
+        actions
+      }))
     }
   ];
 
@@ -646,22 +674,24 @@ function buildFontResultBlocks(families, query, selectionStyles) {
     return blocks;
   }
 
+  const variantActions = selectedFamily.variants.map((variant, index) => {
+    const actionId = `variant-${index}`;
+    const variantKey = fontVariantKey(selectedFamily.name, variant);
+    variantActionMap.set(actionId, { family: selectedFamily.name, variant, variantKey });
+    return {
+      id: actionId,
+      label: variant.name,
+      preview: fontPreview(selectedFamily.name, variant),
+      variant: variantKey === activeFontKey ? 'primary' : 'outline'
+    };
+  });
+
   blocks.push(
     { type: 'heading', text: selectedFamily.name, level: 4 },
-    {
+    ...chunkItems(variantActions).map((actions) => ({
       type: 'actions',
-      actions: selectedFamily.variants.map((variant, index) => {
-        const actionId = `variant-${index}`;
-        const variantKey = fontVariantKey(selectedFamily.name, variant);
-        variantActionMap.set(actionId, { family: selectedFamily.name, variant, variantKey });
-        return {
-          id: actionId,
-          label: variant.name,
-          preview: fontPreview(selectedFamily.name, variant),
-          variant: variantKey === activeFontKey ? 'primary' : 'outline'
-        };
-      })
-    }
+      actions
+    }))
   );
 
   return blocks;

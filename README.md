@@ -8,6 +8,7 @@
 - Uses `system:fonts` to request installed font family and variant metadata.
 - Uses `document:read` and `document:write` to apply marks to the selected text.
 - Keeps the active custom font visible in the Matches list as the editor selection changes.
+- Chunks large font and variant lists to stay within Grainery's per-block action limit.
 - Falls back to a platform sans-serif in the editor and built-in Helvetica in PDF when a custom font is unavailable.
 
 The core app owns the TipTap schema marks and the permission-gated system font host call. This plugin owns the user-facing controls.
@@ -17,6 +18,7 @@ The core app owns the TipTap schema marks and the permission-gated system font h
 This repository is checked out as `examples/plugins/system-font-styles` in the Grainery repository. Run these commands from the Grainery repository root:
 
 ```bash
+node --test test/*.test.mjs
 npm run plugin:validate -- examples/plugins/system-font-styles --check-entry
 npm run plugin:pack -- examples/plugins/system-font-styles
 npm run plugin:check-archive -- examples/plugins/system-font-styles/system-font-styles.grainery-plugin.zip
