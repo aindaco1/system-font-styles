@@ -63,10 +63,5 @@
   "permissionRationales": {
     "ui:mount": "This lets you open the font styling controls while you write.",
     "system:fonts": "This lets the font picker list and preview fonts installed on this computer."
-  },
-  "signature": {
-    "keyId": "main-2026",
-    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "sig": "PLACEHOLDER"
   }
 }
